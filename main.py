@@ -1,6 +1,10 @@
+import ast
 import os
+import re
+from typing import Sequence
 
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain.agents.agent_toolkits import create_retriever_tool
 from langchain_community.agent_toolkits import create_sql_agent
 from langchain_community.utilities.sql_database import SQLDatabase
 from langchain_community.vectorstores import FAISS
@@ -12,6 +16,7 @@ from langchain_core.prompts import (
     PromptTemplate,
     SystemMessagePromptTemplate,
 )
+from langchain_core.tools import BaseTool
 
 from sql_agent.config import AppConfig, ConfigProvider
 from sql_agent.examples import SQL_EXAMPLES
@@ -74,7 +79,37 @@ def test_full_prompt():
     print(prompt_val.to_string())
 
 
-def run_agent(user_input: str, use_examples: bool = False):
+def query_as_list(db: SQLDatabase, query: str):
+    """
+    Run the given query on the database and return the results as a list.
+    """
+    res = str(db.run(query))
+    res = [el for sub in ast.literal_eval(res) for el in sub if el]
+    res = [re.sub(r"\b\d+\b", "", string).strip() for string in res]
+    return list(set(res))
+
+
+def build_retriever_tool(db: SQLDatabase):
+    artists = query_as_list(db, "SELECT Name FROM Artist")
+    albums = query_as_list(db, "SELECT Title FROM Album")
+    vector_db = FAISS.from_texts(artists + albums, OpenAIEmbeddings())
+    retriever = vector_db.as_retriever(search_kwargs={"k": 5})
+    description = """Use to look up values to filter on. Input is an approximate spelling of the proper noun, output is \
+    valid proper nouns. Use the noun most similar to the search."""
+    retriever_tool = create_retriever_tool(
+        retriever,
+        name="search_proper_nouns",
+        description=description,
+    )
+    return retriever_tool
+
+
+def run_agent(
+        user_input: str, 
+        db: SQLDatabase,
+        extra_tools: Sequence[BaseTool] = [],
+        use_examples: bool = False
+    ):
     """
     Run the agent with the given query.
 
@@ -87,6 +122,7 @@ def run_agent(user_input: str, use_examples: bool = False):
         llm,
         db=db,
         prompt=prompt,
+        extra_tools=extra_tools,
         agent_type="openai-tools",
         verbose=True
     )
@@ -107,6 +143,18 @@ if __name__ == "__main__":
     print("Database connection successful.")
 
     # test_full_prompt()
+    # print(query_as_list(db, "SELECT Name FROM Artist"))
+    # exit()
 
-    result = run_agent("What are the names of all the artists in the database?", use_examples=True)
+    # query = "What are the names of all the artists in the database?"
+    # query = "How many albums does alis chein have?"
+    query = "How many albums does the twelve of berlin have?"
+
+    extra_tools = [build_retriever_tool(db)]
+    result = run_agent(
+        query,
+        db,
+        extra_tools=extra_tools,
+        use_examples=True
+    )
     print(result)
