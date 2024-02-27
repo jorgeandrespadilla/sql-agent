@@ -85,7 +85,8 @@ def query_as_list(db: SQLDatabase, query: str):
     """
     res = str(db.run(query))
     res = [el for sub in ast.literal_eval(res) for el in sub if el]
-    res = [re.sub(r"\b\d+\b", "", string).strip() for string in res]
+    res = [string.strip() for string in res] # Remove extra spaces
+    # res = [re.sub(r"\b\d+\b", "", string).strip() for string in res] # Remove numbers and extra spaces
     return list(set(res))
 
 
@@ -95,7 +96,11 @@ def build_retriever_tool(db: SQLDatabase):
     vector_db = FAISS.from_texts(artists + albums, OpenAIEmbeddings())
     retriever = vector_db.as_retriever(search_kwargs={"k": 5})
     description = """Use to look up values to filter on. Input is an approximate spelling of the proper noun, output is \
-    valid proper nouns. Use the noun most similar to the search."""
+    valid proper nouns. Use the noun most similar to the search.""" # TODO: Improve description
+    description = """Use to look up values to filter on for:
+    - Artist Name
+    - Album Title
+    Input is an approximate spelling of the proper noun, output is valid proper nouns. Use the noun most similar to the search."""
     retriever_tool = create_retriever_tool(
         retriever,
         name="search_proper_nouns",
