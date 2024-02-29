@@ -27,3 +27,5 @@ python main.py
 ## Additional Information
 
 For more information, please refer to the [Agents LangChain documentation](https://python.langchain.com/docs/use_cases/sql/agents).
+
+For more information about using LLMs with Streamlit, please refer to the [Streamlit documentation](https://docs.streamlit.io/knowledge-base/tutorials/llm-quickstart).
