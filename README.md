@@ -18,10 +18,16 @@ This is a simple SQL Agent that can be used to run SQL queries against a databas
 
 ## Running the Agent
 
-To run the agent, you can use the following command:
+To run the agent in CLI, you can use the following command:
 
 ```bash
 python main.py
+```
+
+To run the agent in Streamlit, you can use the following command:
+
+```bash
+streamlit run app.py
 ```
 
 ## Additional Information
