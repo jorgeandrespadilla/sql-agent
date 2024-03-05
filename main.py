@@ -21,7 +21,7 @@ from langchain_core.tools import BaseTool
 from sql_agent.config import AppConfig, ConfigProvider
 from sql_agent.examples import SQL_EXAMPLES
 from sql_agent.prompts import SQL_SYSTEM_PREFIX
-
+import streamlit as st
 
 # Configure app
 config_provider = ConfigProvider(".env")
@@ -85,7 +85,7 @@ def query_as_list(db: SQLDatabase, query: str):
     """
     res = str(db.run(query))
     res = [el for sub in ast.literal_eval(res) for el in sub if el]
-    res = [string.strip() for string in res] # Remove extra spaces
+    res = [string.strip() for string in res]  # Remove extra spaces
     # res = [re.sub(r"\b\d+\b", "", string).strip() for string in res] # Remove numbers and extra spaces
     return list(set(res))
 
@@ -96,7 +96,7 @@ def build_retriever_tool(db: SQLDatabase):
     vector_db = FAISS.from_texts(artists + albums, OpenAIEmbeddings())
     retriever = vector_db.as_retriever(search_kwargs={"k": 5})
     description = """Use to look up values to filter on. Input is an approximate spelling of the proper noun, output is \
-    valid proper nouns. Use the noun most similar to the search.""" # TODO: Improve description
+    valid proper nouns. Use the noun most similar to the search."""  # TODO: Improve description
     description = """Use to look up values to filter on for:
     - Artist Name
     - Album Title
@@ -110,11 +110,11 @@ def build_retriever_tool(db: SQLDatabase):
 
 
 def run_agent(
-        user_input: str, 
-        db: SQLDatabase,
-        extra_tools: Sequence[BaseTool] = [],
-        use_examples: bool = False
-    ):
+    user_input: str,
+    db: SQLDatabase,
+    extra_tools: Sequence[BaseTool] = [],
+    use_examples: bool = False
+):
     """
     Run the agent with the given query.
 
@@ -138,6 +138,42 @@ def run_agent(
     return result
 
 
+def generate_response(query: str):
+    extra_tools = [build_retriever_tool(db)]
+    result = run_agent(
+        query,
+        db,
+        extra_tools=extra_tools,
+        use_examples=True
+    )
+    return result
+
+
+def run_test():
+    # test_full_prompt()
+    # print(query_as_list(db, "SELECT Name FROM Artist"))
+    # exit()
+
+    # query = "What are the names of all the artists in the database?"
+    # query = "How many albums does alis chein have?"
+    query = "How many albums does the twelve of berlin have?"
+    result = generate_response(query)
+    print("Question: ", query)
+    print("Answer:")
+    print(result["output"])
+
+
+def run_app():
+    st.title('🤖 SQL Agent')
+
+    with st.form('my_form'):
+        query = st.text_area('Enter query:', 'How many albums does the twelve of berlin have?')
+        submitted = st.form_submit_button('Ask')
+        if submitted:
+            response = generate_response(query)["output"]
+            st.info(response)
+
+
 if __name__ == "__main__":
     try:
         check_db_connection()
@@ -147,19 +183,5 @@ if __name__ == "__main__":
         exit(1)
     print("Database connection successful.")
 
-    # test_full_prompt()
-    # print(query_as_list(db, "SELECT Name FROM Artist"))
-    # exit()
-
-    # query = "What are the names of all the artists in the database?"
-    # query = "How many albums does alis chein have?"
-    query = "How many albums does the twelve of berlin have?"
-
-    extra_tools = [build_retriever_tool(db)]
-    result = run_agent(
-        query,
-        db,
-        extra_tools=extra_tools,
-        use_examples=True
-    )
-    print(result)
+    # run_test()
+    run_app()
