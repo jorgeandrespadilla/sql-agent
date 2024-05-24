@@ -27,7 +27,7 @@ python main.py
 To run the agent in Streamlit, you can use the following command:
 
 ```bash
-streamlit run app.py
+streamlit run main.py
 ```
 
 ## Additional Information
